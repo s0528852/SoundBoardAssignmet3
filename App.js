@@ -27,7 +27,6 @@ export default function App() {
     });
   }, []);
 
-
   // Plays the sound
   const playSound = async (soundResource) => {
     if (sound) {
@@ -38,6 +37,7 @@ export default function App() {
     setSound(newSound);
     await newSound.playAsync();
   };
+
   // Stops the sound
   const stopSound = async () => {
     if (sound) {
@@ -46,6 +46,7 @@ export default function App() {
       setSound(null);
     }
   };
+
   //Starts recording of the sounds, says the maximum limit
   const startRecording = async () => {
     if (recordedSounds.length >= 8) {
@@ -66,6 +67,7 @@ export default function App() {
       console.error('Failed to start recording', err);
     }
   };
+
   // Stops recording sound
   const stopRecording = async () => {
     if (!recording) return;
@@ -80,6 +82,7 @@ export default function App() {
       });
     }
   };
+
   // Updates Sound recordings
   const updateRecordedSounds = () => {
     db.transaction(tx => {
@@ -88,6 +91,7 @@ export default function App() {
       });
     });
   };
+  
   // Deletes sound recordings
   const deleteRecording = (id) => {
     db.transaction(tx => {

@@ -20,7 +20,6 @@ const baseButtonTextStyle = {
   textAlign: 'center',
 };
 
-// Create the complete stylesheet
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -29,33 +28,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     padding: 20,
   },
+
   row: {
     flexDirection: 'row',
     justifyContent: 'space-around', 
     alignItems: 'center', 
     marginBottom: 20, 
   },
+
   button: {
     ...baseButtonStyle,
     backgroundColor: '#4CAF50', 
   },
+
   buttonText: {
     ...baseButtonTextStyle, 
   },
+
   buttonPressed: {
     backgroundColor: '#388E3C', 
   },
+
   buttonRecorded: {
     ...baseButtonStyle,
     backgroundColor: '#FFA07A', 
   },
+
   buttonDelete: {
     ...baseButtonStyle,
     backgroundColor: '#FF6347', 
   },
+
   buttonTextRecorded: {
     ...baseButtonTextStyle, 
   },
+  
 });
 
 export default styles;
