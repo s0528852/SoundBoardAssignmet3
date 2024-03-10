@@ -1,123 +1,167 @@
 import React, { useState, useEffect } from 'react';
-import { View, Pressable, Text } from 'react-native';
+import { View, Pressable, Text, FlatList, Alert } from 'react-native';
 import { Audio } from 'expo-av';
+import * as SQLite from 'expo-sqlite';
 import styles from './styles/styles_sheet'; 
+
+const db = SQLite.openDatabase('soundboard.db');
 
 export default function App() {
   const [sound, setSound] = useState(null);
   const [recording, setRecording] = useState(null);
-  const [recordedUri, setRecordedUri] = useState(null);
+  const [recordedSounds, setRecordedSounds] = useState([]);
 
-  // Array of local sound files
   const sounds = [
     require('./Sounds/rizz-sounds.mp3'),
     require('./Sounds/summer-time-anime-love_q5du5Qo.mp3'),
     require('./Sounds/unspoken-rizz.mp3'),
   ];
 
-  // Function to play a sound
+  useEffect(() => {
+    db.transaction(tx => {
+      tx.executeSql(
+      );
+      tx.executeSql('SELECT * FROM recordings;', [], (_, { rows }) => {
+        setRecordedSounds(rows._array);
+      });
+    });
+  }, []);
+
+
+  // Plays the sound
   const playSound = async (soundResource) => {
-    // Stop any sound currently playing before starting a new one
     if (sound) {
       await sound.stopAsync();
       await sound.unloadAsync();
     }
-
-    console.log('Loading Sound');
     const { sound: newSound } = await Audio.Sound.createAsync(soundResource);
     setSound(newSound);
-    console.log('Playing Sound');
     await newSound.playAsync();
   };
-
-  // Function to stop the currently playing sound
+  // Stops the sound
   const stopSound = async () => {
     if (sound) {
-      console.log('Stopping Sound');
       await sound.stopAsync();
       await sound.unloadAsync();
       setSound(null);
     }
   };
-
-  // Function to start recording
+  //Starts recording of the sounds, says the maximum limit
   const startRecording = async () => {
+    if (recordedSounds.length >= 8) {
+      Alert.alert("Limit Reached Maximum 8", "Delete an existing recording first");
+      return;
+    }
     try {
-      console.log('Requesting permissions..');
       await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
-      console.log('Starting recording..');
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
-      await recording.startAsync();
-      setRecording(recording);
-      console.log('Recording started');
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+      await newRecording.startAsync();
+      setRecording(newRecording);
     } catch (err) {
       console.error('Failed to start recording', err);
     }
   };
-
-  // Function to stop recording
+  // Stops recording sound
   const stopRecording = async () => {
-    console.log('Stopping recording..');
-    if (recording) {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecordedUri(uri);
-      setRecording(null);
-      console.log('Recording stopped and stored at', uri);
+    if (!recording) return;
+    await recording.stopAndUnloadAsync();
+    const uri = recording.getURI();
+    setRecording(null);
+    if (uri) {
+      db.transaction(tx => {
+        tx.executeSql('INSERT INTO recordings (uri) VALUES (?);', [uri], () => {
+          updateRecordedSounds();
+        });
+      });
     }
   };
-
-  // Function to play the recorded sound
-  const playRecordedSound = async () => {
-    if (recordedUri) {
-      // Stop any sound currently playing before starting a new one
-      if (sound) {
-        await sound.stopAsync();
-        await sound.unloadAsync();
-      }
-      
-      console.log('Loading Recorded Sound');
-      const { sound: newSound } = await Audio.Sound.createAsync({ uri: recordedUri });
-      setSound(newSound);
-      console.log('Playing Recorded Sound');
-      await newSound.playAsync();
-    }
+  // Updates Sound recordings
+  const updateRecordedSounds = () => {
+    db.transaction(tx => {
+      tx.executeSql('SELECT * FROM recordings;', [], (_, { rows }) => {
+        setRecordedSounds(rows._array);
+      });
+    });
   };
-
-  useEffect(() => {
-    return sound
-      ? () => {
-          console.log('Unloading Sound');
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
+  // Deletes sound recordings
+  const deleteRecording = (id) => {
+    db.transaction(tx => {
+      tx.executeSql('DELETE FROM recordings WHERE id = ?;', [id], () => {
+        updateRecordedSounds();
+      });
+    });
+  };
 
   return (
     <View style={styles.container}>
-      {sounds.map((soundResource, index) => (
-        <Pressable key={index} style={styles.button} onPress={() => playSound(soundResource)}>
-          <Text style={styles.buttonText}>Play Sound {index + 1}</Text>
-        </Pressable>
-      ))}
+      <View style={styles.row}>
+        {sounds.map((soundResource, index) => (
+          <Pressable
+            key={index}
+            onPress={() => playSound(soundResource)}
+            style={({ pressed }) => [
+              styles.button,
+              pressed ? styles.buttonPressed : {}, // Dynamically changes style when pressed
+            ]}>
+            <Text style={styles.buttonText}>Play {index + 1}</Text>
+          </Pressable>
+        ))}
+      </View>
+      
       {sound && (
-        <Pressable style={styles.button} onPress={stopSound}>
+        <Pressable
+          onPress={stopSound}
+          style={({ pressed }) => [
+            styles.button,
+            pressed ? styles.buttonPressed : {}, // Dynamically changes style when pressed
+          ]}>
           <Text style={styles.buttonText}>Stop Sound</Text>
         </Pressable>
       )}
-      <Pressable style={styles.button} onPress={recording ? stopRecording : startRecording}>
-        <Text style={styles.buttonText}>{recording ? 'Stop Recording' : 'Start Recording'}</Text>
+      
+      <Pressable
+        onPress={recording ? stopRecording : startRecording}
+        style={({ pressed }) => [
+          styles.button,
+          pressed ? styles.buttonPressed : {}, // Dynamically changes style when pressed
+        ]}>
+        <Text style={styles.buttonText}>
+          {recording ? 'Stop Recording' : 'Start Recording'}
+        </Text>
       </Pressable>
-      {recordedUri && (
-        <Pressable style={styles.button} onPress={playRecordedSound}>
-          <Text style={styles.buttonText}>Play Recorded Sound</Text>
-        </Pressable>
-      )}
+      
+      {/* FlatList for displaying recorded sounds , scroll feature */}
+      <FlatList
+        style={{ flex: 1, maxHeight: 400 }} // Adjusts FlatList size maxHeight 
+        contentContainerStyle={{ paddingBottom: 20 }}
+        data={recordedSounds}
+        keyExtractor={item => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.row}>
+            <Pressable
+              onPress={() => playSound({ uri: item.uri })}
+              style={({ pressed }) => [
+                styles.buttonRecorded,
+                pressed ? styles.buttonPressed : {},
+              ]}>
+              <Text style={styles.buttonTextRecorded}>Custom Sound {item.id}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => deleteRecording(item.id)}
+              style={({ pressed }) => [
+                styles.buttonDelete,
+                pressed ? styles.buttonPressed : {},
+              ]}>
+              <Text style={styles.buttonText}>Delete</Text>
+            </Pressable>
+          </View>
+        )}
+      />
     </View>
   );
-}
+}  
